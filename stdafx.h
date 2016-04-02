@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <string>
 
-#include <wincodec.h>
 #include <commdlg.h>
+#include <shellapi.h>
+#include <wincodec.h>
 #include <d2d1.h>

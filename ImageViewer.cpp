@@ -17,12 +17,12 @@ inline void SafeRelease(Type *&p)
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
-                     _In_opt_ HINSTANCE hPrevInstance,
-                     _In_ LPWSTR    lpCmdLine,
-                     _In_ int       nCmdShow)
+	_In_opt_ HINSTANCE hPrevInstance,
+	_In_ LPWSTR    lpCmdLine,
+	_In_ int       nCmdShow)
 {
-    UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
+	UNREFERENCED_PARAMETER(hPrevInstance);
+	UNREFERENCED_PARAMETER(lpCmdLine);
 	/*UNREFERENCED_PARAMETER(nCmdShow);*/
 
 	HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_IMAGEVIEWER));
@@ -57,36 +57,39 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			}
 		}
 		CoUninitialize();
-	}	
+	}
 	else
 	{
 		return EXIT_FAILURE;
 	}
 
-    return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }
 
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    UNREFERENCED_PARAMETER(lParam);
-    switch (message)
-    {
-    case WM_INITDIALOG:
-        return (INT_PTR)TRUE;
+	UNREFERENCED_PARAMETER(lParam);
+	switch (message)
+	{
+	case WM_INITDIALOG:
+		return (INT_PTR)TRUE;
 
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
-            EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-        }
-        break;
-    }
-    return (INT_PTR)FALSE;
+	case WM_COMMAND:
+		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+		{
+			EndDialog(hDlg, LOWORD(wParam));
+			return (INT_PTR)TRUE;
+		}
+		break;
+	}
+	return (INT_PTR)FALSE;
 }
 
 ImageViewer::ImageViewer()
 {
+	m_hInst = nullptr;
+	m_hWnd = nullptr;
+
 	m_dwExStyle = WS_EX_ACCEPTFILES;
 	m_dwStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
 	m_pD2DBitmap = nullptr;
@@ -127,7 +130,7 @@ HRESULT ImageViewer::Initialize(HINSTANCE hInstance, int nCmdShow)
 	{
 		LoadStringW(hInstance, IDS_APP_TITLE, m_szTitle, MAX_LOADSTRING);
 		LoadStringW(hInstance, IDC_IMAGEVIEWER, m_szWindowClassName, MAX_LOADSTRING);
-		
+
 		WNDCLASSEX wcex;
 
 		// Register window class
@@ -147,7 +150,7 @@ HRESULT ImageViewer::Initialize(HINSTANCE hInstance, int nCmdShow)
 
 		m_hInst = hInstance;
 
-		hr = RegisterClassEx(&wcex) ? S_OK : E_FAIL;		
+		hr = RegisterClassEx(&wcex) ? S_OK : E_FAIL;
 	}
 
 	if (SUCCEEDED(hr))
@@ -158,16 +161,17 @@ HRESULT ImageViewer::Initialize(HINSTANCE hInstance, int nCmdShow)
 		if (hWnd)
 		{
 			hr = S_OK;
+			m_hWnd = hWnd;
 			ShowWindow(hWnd, nCmdShow);
 			UpdateWindow(hWnd);
 		}
 		else
 		{
 			hr = E_FAIL;
-		}		
+		}
 	}
 
-	return hr;	
+	return hr;
 }
 
 LRESULT ImageViewer::s_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -188,7 +192,7 @@ LRESULT ImageViewer::s_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		pThis = reinterpret_cast<ImageViewer *> (GetWindowLongPtr(hWnd, GWLP_USERDATA));
 		if (pThis)
 		{
-			lRet = pThis->WndProc(hWnd, uMsg, wParam, lParam);
+			lRet = pThis->WndProc(uMsg, wParam, lParam);
 		}
 		else
 		{
@@ -198,9 +202,9 @@ LRESULT ImageViewer::s_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 	return lRet;
 }
 
-LRESULT ImageViewer::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT ImageViewer::WndProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	switch (message)
+	switch (uMsg)
 	{
 	case WM_COMMAND:
 	{
@@ -209,24 +213,36 @@ LRESULT ImageViewer::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		{
 		case IDM_FILE:
 		{
-			if (SUCCEEDED(CreateD2DBitmapFromFile(hWnd)))
+			if (LocateImageFile() && SUCCEEDED(RenderImage()))
 			{
-				InvalidateRect(hWnd, nullptr, TRUE);
+				InvalidateRect(m_hWnd, nullptr, TRUE);
 			}
 			else
 			{
-				MessageBox(hWnd, L"Failed to load image, select a new one.", L"Application Error", MB_ICONEXCLAMATION | MB_OK);
+				MessageBox(m_hWnd, L"Failed to load image, select a new one.", L"Application Error", MB_ICONEXCLAMATION | MB_OK);
 			}
 		}
 		break;
 		case IDM_ABOUT:
-			DialogBox(m_hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+			DialogBox(m_hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), m_hWnd, About);
 			break;
 		case IDM_EXIT:
-			PostMessage(hWnd, WM_CLOSE, 0, 0);
+			PostMessage(m_hWnd, WM_CLOSE, 0, 0);
 			break;
 		default:
-			return DefWindowProc(hWnd, message, wParam, lParam);
+			return DefWindowProc(m_hWnd, uMsg, wParam, lParam);
+		}
+	}
+	break;
+	case WM_DROPFILES:
+	{
+		if (DragProc(wParam) && SUCCEEDED(RenderImage()))
+		{
+			InvalidateRect(m_hWnd, nullptr, TRUE);
+		}
+		else
+		{
+			MessageBox(m_hWnd, L"Failed to load image, select a new one.", L"Application Error", MB_ICONEXCLAMATION | MB_OK);
 		}
 	}
 	break;
@@ -248,151 +264,145 @@ LRESULT ImageViewer::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 	break;
 	case WM_PAINT:
 	{
-		return OnPaint(hWnd);
+		return OnPaint();
 	}
 	break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		break;
 	default:
-		return DefWindowProc(hWnd, message, wParam, lParam);
+		return DefWindowProc(m_hWnd, uMsg, wParam, lParam);
 	}
 	return 0;
 }
 
-HRESULT ImageViewer::CreateD2DBitmapFromFile(HWND hWnd)
+HRESULT ImageViewer::RenderImage()
 {
 	HRESULT hr = S_OK;
+	// Create a decoder
+	IWICBitmapDecoder *pDecoder = nullptr;
 
-	WCHAR szFileName[MAX_PATH];
+	hr = m_pIWICFactory->CreateDecoderFromFilename(
+		m_szFileName.c_str(),                      // Image to be decoded
+		nullptr,                         // Do not prefer a particular vendor
+		GENERIC_READ,                    // Desired read access to the file
+		WICDecodeMetadataCacheOnDemand,  // Cache metadata when needed
+		&pDecoder                        // Pointer to the decoder
+	);
 
-	// Step 1: Create the open dialog box and locate the image file
-	if (LocateImageFile(hWnd, szFileName, ARRAYSIZE(szFileName)))
+	// Retrieve the first frame of the image from the decoder
+	IWICBitmapFrameDecode *pFrame = nullptr;
+
+	if (SUCCEEDED(hr))
 	{
-		// Step 2: Decode the source image
-
-		// Create a decoder
-		IWICBitmapDecoder *pDecoder = nullptr;
-
-		hr = m_pIWICFactory->CreateDecoderFromFilename(
-			szFileName,                      // Image to be decoded
-			nullptr,                         // Do not prefer a particular vendor
-			GENERIC_READ,                    // Desired read access to the file
-			WICDecodeMetadataCacheOnDemand,  // Cache metadata when needed
-			&pDecoder                        // Pointer to the decoder
-		);
-
-		// Retrieve the first frame of the image from the decoder
-		IWICBitmapFrameDecode *pFrame = nullptr;
-
-		if (SUCCEEDED(hr))
-		{
-			hr = pDecoder->GetFrame(0, &pFrame);
-		}
-
-		if (SUCCEEDED(hr))
-		{
-			RECT rc = {0};
-			BOOL ret = TRUE;
-
-			unsigned int nImageWidth, nImageHeight;
-			pFrame->GetSize(&nImageWidth, &nImageHeight);
-
-			rc.right = rc.left + nImageWidth;
-			rc.bottom = rc.top + nImageHeight;
-			ret = AdjustWindowRectEx(&rc, m_dwStyle, TRUE, m_dwExStyle);
-			assert(ret);
-
-			int nWindowWidth = rc.right - rc.left;
-			int nWindowHeight = rc.bottom - rc.top;
-			int nBorderWidth = nWindowWidth - nImageWidth;
-			int nBorderHeight = nWindowHeight - nImageHeight;
-
-			RECT rcWorkArea = { 0 };
-			SystemParametersInfo(SPI_GETWORKAREA, 0, &rcWorkArea, 0);
-
-			const int nWorkAreaWidth = rcWorkArea.right - rcWorkArea.left;
-			const int nWorkAreaHeight = rcWorkArea.bottom - rcWorkArea.top;
-
-			ret = GetWindowRect(hWnd, &rc);
-			assert(ret);
-			if (nWindowHeight < nWorkAreaHeight && nWindowWidth < nWorkAreaWidth)
-			{
-				if(nWindowHeight < nWorkAreaHeight)
-					rc.top = rcWorkArea.top;
-				if (nWindowWidth < nWorkAreaWidth)
-					rc.left = rcWorkArea.left;
-			}
-			else
-			{
-				rc.top = rcWorkArea.top;
-				rc.left = rcWorkArea.left;
-				if (nWindowHeight > nWorkAreaHeight)
-				{
-					nWindowHeight = nWorkAreaHeight;
-					double fWindowWidth = (double)nImageWidth / (double)nImageHeight * ((double)nWindowHeight - (double)nBorderHeight) + (double)nBorderWidth;
-					nWindowWidth = (int)fWindowWidth;
-				}
-				if (nWindowWidth > nWorkAreaWidth)
-				{
-					nWindowWidth = nWorkAreaWidth;
-					double fWindowHeight = (double)nImageHeight / (double)nImageWidth * ((double)nWindowWidth - (double)nBorderWidth) + (double)nBorderHeight;
-					nWindowHeight = (int)fWindowHeight;
-				}
-			}
-
-			ret = MoveWindow(hWnd, rc.left, rc.top, nWindowWidth, nWindowHeight, TRUE);
-			assert(ret);
-		}
-
-		//Step 3: Format convert the frame to 32bppPBGRA
-		if (SUCCEEDED(hr))
-		{
-			SafeRelease(m_pConvertedSourceBitmap);
-			hr = m_pIWICFactory->CreateFormatConverter(&m_pConvertedSourceBitmap);
-		}
-
-		if (SUCCEEDED(hr))
-		{
-			hr = m_pConvertedSourceBitmap->Initialize(
-				pFrame,                          // Input bitmap to convert
-				GUID_WICPixelFormat32bppPBGRA,   // Destination pixel format
-				WICBitmapDitherTypeNone,         // Specified dither pattern
-				nullptr,                         // Specify a particular palette 
-				0.f,                             // Alpha threshold
-				WICBitmapPaletteTypeCustom       // Palette translation type
-			);
-		}
-
-		//Step 4: Create render target and D2D bitmap from IWICBitmapSource
-		if (SUCCEEDED(hr))
-		{
-			hr = CreateDeviceResources(hWnd);
-		}
-
-		if (SUCCEEDED(hr))
-		{
-			// Need to release the previous D2DBitmap if there is one
-			SafeRelease(m_pD2DBitmap);
-			hr = m_pRT->CreateBitmapFromWicBitmap(m_pConvertedSourceBitmap, nullptr, &m_pD2DBitmap);
-		}
-
-		SafeRelease(pDecoder);
-		SafeRelease(pFrame);
+		hr = pDecoder->GetFrame(0, &pFrame);
 	}
+
+	if (SUCCEEDED(hr))
+	{
+		RECT rc = { 0 };
+		BOOL ret = TRUE;
+
+		unsigned int nImageWidth, nImageHeight;
+		pFrame->GetSize(&nImageWidth, &nImageHeight);
+
+		rc.right = rc.left + nImageWidth;
+		rc.bottom = rc.top + nImageHeight;
+		ret = AdjustWindowRectEx(&rc, m_dwStyle, TRUE, m_dwExStyle);
+		assert(ret);
+
+		int nWindowWidth = rc.right - rc.left;
+		int nWindowHeight = rc.bottom - rc.top;
+		int nBorderWidth = nWindowWidth - nImageWidth;
+		int nBorderHeight = nWindowHeight - nImageHeight;
+
+		RECT rcWorkArea = { 0 };
+		SystemParametersInfo(SPI_GETWORKAREA, 0, &rcWorkArea, 0);
+
+		const int nWorkAreaWidth = rcWorkArea.right - rcWorkArea.left;
+		const int nWorkAreaHeight = rcWorkArea.bottom - rcWorkArea.top;
+
+		ret = GetWindowRect(m_hWnd, &rc);
+		assert(ret);
+		if (nWindowHeight < nWorkAreaHeight && nWindowWidth < nWorkAreaWidth)
+		{
+			if (nWindowHeight < nWorkAreaHeight)
+				rc.top = rcWorkArea.top;
+			if (nWindowWidth < nWorkAreaWidth)
+				rc.left = rcWorkArea.left;
+		}
+		else
+		{
+			rc.top = rcWorkArea.top;
+			rc.left = rcWorkArea.left;
+			if (nWindowHeight > nWorkAreaHeight)
+			{
+				nWindowHeight = nWorkAreaHeight;
+				double fWindowWidth = (double)nImageWidth / (double)nImageHeight * ((double)nWindowHeight - (double)nBorderHeight) + (double)nBorderWidth;
+				nWindowWidth = (int)fWindowWidth;
+			}
+			if (nWindowWidth > nWorkAreaWidth)
+			{
+				nWindowWidth = nWorkAreaWidth;
+				double fWindowHeight = (double)nImageHeight / (double)nImageWidth * ((double)nWindowWidth - (double)nBorderWidth) + (double)nBorderHeight;
+				nWindowHeight = (int)fWindowHeight;
+			}
+		}
+
+		ret = MoveWindow(m_hWnd, rc.left, rc.top, nWindowWidth, nWindowHeight, TRUE);
+		assert(ret);
+	}
+
+	//Format convert the frame to 32bppPBGRA
+	if (SUCCEEDED(hr))
+	{
+		SafeRelease(m_pConvertedSourceBitmap);
+		hr = m_pIWICFactory->CreateFormatConverter(&m_pConvertedSourceBitmap);
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		hr = m_pConvertedSourceBitmap->Initialize(
+			pFrame,                          // Input bitmap to convert
+			GUID_WICPixelFormat32bppPBGRA,   // Destination pixel format
+			WICBitmapDitherTypeNone,         // Specified dither pattern
+			nullptr,                         // Specify a particular palette 
+			0.f,                             // Alpha threshold
+			WICBitmapPaletteTypeCustom       // Palette translation type
+		);
+	}
+
+	//Create render target and D2D bitmap from IWICBitmapSource
+	if (SUCCEEDED(hr))
+	{
+		hr = CreateDeviceResources();
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		// Need to release the previous D2DBitmap if there is one
+		SafeRelease(m_pD2DBitmap);
+		hr = m_pRT->CreateBitmapFromWicBitmap(m_pConvertedSourceBitmap, nullptr, &m_pD2DBitmap);
+	}
+
+	SafeRelease(pDecoder);
+	SafeRelease(pFrame);
 
 	return hr;
 }
 
-bool ImageViewer::LocateImageFile(HWND hWnd, LPWSTR pszFileName, DWORD cchFileName)
+bool ImageViewer::LocateImageFile()
 {
-	pszFileName[0] = L'\0';
+	m_szFileName = L"\\\\?\\";
+	WCHAR* szFileName = nullptr;
+	szFileName = new WCHAR[MAX_FILENAME_LENGTH];
+	ZeroMemory(szFileName, MAX_FILENAME_LENGTH);
 
 	OPENFILENAME ofn;
 	ZeroMemory(&ofn, sizeof(ofn));
 
 	ofn.lStructSize = sizeof(ofn);
-	ofn.hwndOwner = hWnd;
+	ofn.hwndOwner = m_hWnd;
 	ofn.lpstrFilter = L"All Image Files\0"              L"*.bmp;*.dib;*.wdp;*.mdp;*.hdp;*.gif;*.png;*.jpg;*.jpeg;*.tif;*.ico\0"
 		L"Windows Bitmap\0"               L"*.bmp;*.dib\0"
 		L"High Definition Photo\0"        L"*.wdp;*.mdp;*.hdp\0"
@@ -403,23 +413,61 @@ bool ImageViewer::LocateImageFile(HWND hWnd, LPWSTR pszFileName, DWORD cchFileNa
 		L"Icon\0"                         L"*.ico\0"
 		L"All Files\0"                    L"*.*\0"
 		L"\0";
-	ofn.lpstrFile = pszFileName;
-	ofn.nMaxFile = cchFileName;
+	ofn.lpstrFile = szFileName;
+	ofn.nMaxFile = MAX_FILENAME_LENGTH;
 	ofn.lpstrTitle = L"Open Image";
 	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
 
-	// Display the Open dialog box. 
-	return (GetOpenFileName(&ofn) == TRUE);
+	// Display the Open dialog box.
+	BOOL ret = GetOpenFileName(&ofn);
+
+	if (ret == TRUE)
+	{
+		m_szFileName += szFileName;
+	}
+	delete[] szFileName;
+
+	return ret == TRUE ? true : false;
 }
 
-HRESULT ImageViewer::CreateDeviceResources(HWND hWnd)
+bool ImageViewer::DragProc(WPARAM wParam)
+{
+	HDROP hDrop = (HDROP)wParam;
+	m_szFileName = L"\\\\?\\";
+	bool ret = false;
+
+	UINT nCount = DragQueryFileW(hDrop, 0xFFFFFFFF, nullptr, 0);
+
+	// 	for (UINT i = 0; i < nCount; i++)
+	// 	{
+	// 		DragQueryFileW(hDrop, i, szFileName, MAX_FILENAME_LENGTH);
+	// 	}
+	UINT nSize = DragQueryFileW(hDrop, 0, nullptr, 0);
+	if (nSize > 0)
+	{
+		WCHAR* szFileName = nullptr;
+		szFileName = new WCHAR[nSize + 1];
+		ZeroMemory(szFileName, nSize + 1);
+		if (DragQueryFileW(hDrop, 0, szFileName, nSize + 1) > 0)
+		{
+			m_szFileName += szFileName;
+			ret = true;
+		}
+		delete[] szFileName;
+	}
+
+	DragFinish(hDrop);
+	return ret;
+}
+
+HRESULT ImageViewer::CreateDeviceResources()
 {
 	HRESULT hr = S_OK;
 
 	if (!m_pRT)
 	{
 		RECT rc;
-		hr = GetClientRect(hWnd, &rc) ? S_OK : E_FAIL;
+		hr = GetClientRect(m_hWnd, &rc) ? S_OK : E_FAIL;
 
 		if (SUCCEEDED(hr))
 		{
@@ -434,7 +482,7 @@ HRESULT ImageViewer::CreateDeviceResources(HWND hWnd)
 
 			hr = m_pD2DFactory->CreateHwndRenderTarget(
 				renderTargetProperties,
-				D2D1::HwndRenderTargetProperties(hWnd, size),
+				D2D1::HwndRenderTargetProperties(m_hWnd, size),
 				&m_pRT
 			);
 		}
@@ -443,15 +491,15 @@ HRESULT ImageViewer::CreateDeviceResources(HWND hWnd)
 	return hr;
 }
 
-LRESULT ImageViewer::OnPaint(HWND hWnd)
+LRESULT ImageViewer::OnPaint()
 {
 	HRESULT hr = S_OK;
 	PAINTSTRUCT ps;
 
-	if (BeginPaint(hWnd, &ps))
+	if (BeginPaint(m_hWnd, &ps))
 	{
 		// Create render target if not yet created
-		hr = CreateDeviceResources(hWnd);
+		hr = CreateDeviceResources();
 
 		if (SUCCEEDED(hr) && !(m_pRT->CheckWindowState() & D2D1_WINDOW_STATE_OCCLUDED))
 		{
@@ -489,11 +537,11 @@ LRESULT ImageViewer::OnPaint(HWND hWnd)
 				SafeRelease(m_pD2DBitmap);
 				SafeRelease(m_pRT);
 				// Force a re-render
-				hr = InvalidateRect(hWnd, nullptr, TRUE) ? S_OK : E_FAIL;
+				hr = InvalidateRect(m_hWnd, nullptr, TRUE) ? S_OK : E_FAIL;
 			}
 		}
 
-		EndPaint(hWnd, &ps);
+		EndPaint(m_hWnd, &ps);
 	}
 
 	return SUCCEEDED(hr) ? 0 : 1;
